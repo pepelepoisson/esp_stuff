@@ -11,13 +11,14 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
+#include <ArduinoJson.h>
 
 ESP8266WebServer server;
 WebSocketsServer webSocket = WebSocketsServer(81);
 
 uint8_t pin_led = 2;
-char* ssid = "********";
-char* password = "********";
+char* ssid = "xxx";
+char* password = "xxx";
 
 #define echoPin D7 // Echo Pin
 #define trigPin D6 // Trigger Pin
@@ -28,10 +29,15 @@ char webpage[] PROGMEM = R"=====(
 <head>
   <script>
     var Socket;
+    var gvalue;
     function init() {
       Socket = new WebSocket('ws://' + window.location.hostname + ':81/');
       Socket.onmessage = function(event){
-        document.getElementById("rxConsole").value += event.data;
+        if (gvalue!=event.data){
+          var obj=JSON.parse(event.data);
+          gvalue=obj.distance;
+          document.getElementById("rxConsole").value = gvalue;
+        }
       }
     }
     function sendText(){
@@ -124,10 +130,25 @@ void loop()
   webSocket.loop();
   server.handleClient();
   //Serial.println(distance);
-  if(distance<10){
+
+DynamicJsonBuffer jBuffer;
+JsonObject& root = jBuffer.createObject();
+
+root["distance"]=distance;
+//root.prettyPrintTo(Serial);
+String output_message;
+root.printTo(output_message);
+webSocket.broadcastTXT(output_message);
+//serializeJson(root, output_message);
+
+//root.prettyPrintTo(webSocket);
+//webSocket.broadcastTXT(root);
+
+
+  /*if(distance<10){
     char c[] = "y";
     webSocket.broadcastTXT(c, sizeof(c));
-  }
+  }*/
 
   if(Serial.available() > 0){
     char c[] = {(char)Serial.read()};
