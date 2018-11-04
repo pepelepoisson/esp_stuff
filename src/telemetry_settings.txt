@@ -1,0 +1,70 @@
+Telemetry Viewer File Format v0.1
+
+Grid Settings:
+
+	column count = 8
+	row count = 8
+
+Serial Port Settings:
+
+	port = ttyUSB0
+	baud = 115200
+	packet type = ASCII CSVs
+	sample rate = 1000
+
+5 Data Structure Locations:
+
+	location = 0
+	processor index = 0
+	name = distance
+	color = 0xFF0000
+	unit = 
+	conversion factor a = 1.0
+	conversion factor b = 1.0
+
+	location = 1
+	processor index = 0
+	name = distance_average
+	color = 0x071CF8
+	unit = cm
+	conversion factor a = 1.0
+	conversion factor b = 1.0
+
+	location = 2
+	processor index = 0
+	name = obstacle_detected
+	color = 0x03FA05
+	unit = cm
+	conversion factor a = 1.0
+	conversion factor b = 10.0
+
+	location = 3
+	processor index = 0
+	name = no_obstacle_detected
+	color = 0xE6FB0A
+	unit = cm
+	conversion factor a = 1.0
+	conversion factor b = 10.0
+
+	location = 4
+	processor index = 0
+	name = Passages
+	color = 0xFA6004
+	unit = cm
+	conversion factor a = 1.0
+	conversion factor b = 5.0
+
+1 Charts:
+
+	chart type = Time Domain Chart
+	duration = 200
+	top left x = 0
+	top left y = 0
+	bottom right x = 7
+	bottom right y = 3
+	datasets count = 5
+		dataset location = 0
+		dataset location = 1
+		dataset location = 2
+		dataset location = 3
+		dataset location = 4

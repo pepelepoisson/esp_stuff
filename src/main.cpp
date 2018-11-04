@@ -13,16 +13,13 @@
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
 
+#include <wifi_credentials.h>  // wifi ssid and password
+#include <HC-SR04_sensor.h>  // All functions related to HC-SR04 ultrasonic sensor processing
+
 ESP8266WebServer server;
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-uint8_t pin_led = 2;
-char* ssid = "xxx";
-char* password = "xxx";
-
-#define echoPin D7 // Echo Pin
-#define trigPin D6 // Trigger Pin
-long duration, distance; // Duration used to calculate distance
+#define PIN_LED 2
 
 char webpage[] PROGMEM = R"=====(
 <html>
@@ -35,76 +32,35 @@ char webpage[] PROGMEM = R"=====(
       Socket.onmessage = function(event){
         if (gvalue!=event.data){
           var obj=JSON.parse(event.data);
+          gvalue=obj.passages;
+          document.getElementById("rxConsole1").value = gvalue;
           gvalue=obj.distance;
-          document.getElementById("rxConsole").value = gvalue;
+          document.getElementById("rxConsole2").value = gvalue;
         }
       }
-    }
-    function sendText(){
-      Socket.send(document.getElementById("txBar").value);
-      document.getElementById("txBar").value = "";
-    }
-    function sendBrightness(){
-      Socket.send("#"+document.getElementById("brightness").value);
     }
   </script>
 </head>
 <body onload="javascript:init()">
   <div>
-    <textarea id="rxConsole"></textarea>
+  <p><strong>Nombre de passages: </strong></p>
+  <textarea id="rxConsole1"></textarea>
+  </div>
+  <div>
+  <p><strong>Distance: </strong></p>
+  <textarea id="rxConsole2"></textarea>
   </div>
   <hr/>
-  <div>
-    <input type="text" id="txBar" onkeydown="if(event.keyCode == 13) sendText();" />
-  </div>
-  <hr/>
-  <div>
-    <input type="range" min="0" max="1023" value="512" id="brightness" oninput="sendBrightness()" />
-  </div>
 </body>
 </html>
 )=====";
 
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
-  if(type == WStype_TEXT){
-    if(payload[0] == '#'){
-      uint16_t brightness = (uint16_t) strtol((const char *) &payload[1], NULL, 10);
-      brightness = 1024 - brightness;
-      analogWrite(pin_led, brightness);
-      Serial.print("brightness= ");
-      Serial.println(brightness);
-    }
-
-    else{
-      for(int i = 0; i < length; i++)
-        Serial.print((char) payload[i]);
-      Serial.println();
-    }
-  }
-
-}
-void GetDistance()
-{
-/* The following trigPin/echoPin cycle is used to determine the
-distance of the nearest object by bouncing soundwaves off of it. */
-digitalWrite(trigPin, LOW);
-delayMicroseconds(2);
-digitalWrite(trigPin, HIGH);
-delayMicroseconds(10);
-digitalWrite(trigPin, LOW);
-duration = pulseIn(echoPin, HIGH);
-//Calculate the distance (in cm) based on the speed of sound.
-distance = duration/58.2;
-//Serial.println(distance);
-//Delay 50ms before next reading.
-delay(50);
-}
 
 void setup()
 {
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(pin_led, OUTPUT);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(PIN_LED, OUTPUT);
   WiFi.begin(ssid,password);
   Serial.begin(115200);
   while(WiFi.status()!=WL_CONNECTED)
@@ -121,20 +77,31 @@ void setup()
   });
   server.begin();
   webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
+  current_distance=0;
+  previous_distance=0;
+for (int i=0; i<=20; i++){GetDistance();}  // Get distance at start (assuming no obstacles visible)
 }
 
 void loop()
 {
   GetDistance();
+  CheckForObstacles();
   webSocket.loop();
   server.handleClient();
-  //Serial.println(distance);
+
+  Serial.print(distance_short_sample.getAverage()); Serial.print(",");
+  Serial.print(distance_long_sample.getAverage()); Serial.print(",");
+  Serial.print(obstacle_detected); Serial.print(",");
+  Serial.print(no_obstacle_detected); Serial.print(",");
+  Serial.print(confirmed_passages); Serial.println(",");
+
 
 DynamicJsonBuffer jBuffer;
 JsonObject& root = jBuffer.createObject();
 
-root["distance"]=distance;
+root["distance"]=distance_long_sample.getAverage();
+root["passages"]=confirmed_passages;
+
 //root.prettyPrintTo(Serial);
 String output_message;
 root.printTo(output_message);
